@@ -80,7 +80,32 @@ class phonepe():
         
         mydb.commit()
         mycursor.close()
+    
+    def fetch_data_db(self):
 
+        mydb = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="nishantsai8@P",
+        database = "phonepe"
+        )
+
+        query = """Select * from report"""
+
+        data = pd.read_sql(query,mydb)
+        
+        return data
+
+    def transform(self,df_cleaned,indian_states):
+        state = df_cleaned.groupby(['state','year','quarter']).aggregate({'metric_amount':'sum','transactions':'sum'}).reset_index()
+    
+        state_id_map = {}
+        for feature in indian_states['features']:
+            feature['id'] = feature['properties']['state_code']
+            state_id_map[feature['properties']['st_nm']] = feature['id']
+        state['id'] = state['state'].apply(lambda x: state_id_map[x])
+        return(state)
+ 
     def visual_app(self,data,geo):
 
         st.title("Phonepe Pulse")
@@ -105,15 +130,12 @@ if __name__ == '__main__':
     obj = phonepe()
     df = obj.fetch_data_from_json(loc="/Users/potnurusainishant/Desktop/Python/Guvi Projects/Phonepe Pulse/pulse/data/map/transaction/hover/country/india/state")
     df_cleaned = obj.clean_df(df)
-    state = df_cleaned.groupby(['state','year','quarter']).aggregate({'metric_amount':'sum','transactions':'sum'}).reset_index()
+    df_migrate = obj.migrate_to_sql(df_cleaned)
+    data = obj.fetch_data_db()
     india_states = json.load(open("/Users/potnurusainishant/Desktop/Python/Guvi Projects/Phonepe Pulse/states_india.geojson","r"))
-    state_id_map = {}
-    for feature in india_states['features']:
-        feature['id'] = feature['properties']['state_code']
-        state_id_map[feature['properties']['st_nm']] = feature['id']
-    state['id'] = state['state'].apply(lambda x: state_id_map[x])
-
+    state= obj.transform(data,india_states)
     visual_plot = obj.visual_app(state,india_states)
+
 
 
     
